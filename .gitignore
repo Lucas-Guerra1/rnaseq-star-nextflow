@@ -1,0 +1,15 @@
+# Nextflow artifacts
+.nextflow/
+.nextflow.*
+work/
+.Rhistory
+.RData
+
+# Data and Results
+data/raw/
+data/ref/
+results/
+
+# Logs and OS
+*.log
+.DS_Store
