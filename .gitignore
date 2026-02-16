@@ -1,15 +1,6 @@
-# Nextflow artifacts
-.nextflow/
-.nextflow.*
 work/
-.Rhistory
-.RData
-
-# Data and Results
-data/raw/
-data/ref/
-results/
-
-# Logs and OS
-*.log
+.nextflow*
+results*/
+report*.html
+trace*.txt
 .DS_Store
