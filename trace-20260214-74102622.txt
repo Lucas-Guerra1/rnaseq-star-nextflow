@@ -1,0 +1,3 @@
+task_id	hash	native_id	name	status	exit	submit	duration	realtime	%cpu	peak_rss	peak_vmem	rchar	wchar
+1	b7/bba6b7	8837	STAR_INDEX (index)	FAILED	134	2026-02-14 20:35:03.466	854ms	789ms	-	-	-	-	-
+2	4a/b628ab	8900	FASTQC (sample1)	ABORTED	-	2026-02-14 20:35:04.329	-	-	-	-	-	-	-

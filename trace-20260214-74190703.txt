@@ -1,0 +1,4 @@
+task_id	hash	native_id	name	status	exit	submit	duration	realtime	%cpu	peak_rss	peak_vmem	rchar	wchar
+2	a4/d1d3c5	9325	FASTQC (sample1)	COMPLETED	0	2026-02-14 20:36:31.640	3s	2.1s	112.9%	198.8 MB	3.5 GB	10.6 MB	2.8 MB
+1	c6/a53ef8	9590	STAR_INDEX (index)	COMPLETED	0	2026-02-14 20:36:34.641	3.4s	2.5s	399.2%	9.8 MB	423.7 MB	1.8 MB	2.4 MB
+3	c2/e590e4	9839	STAR_ALIGN (sample1)	COMPLETED	0	2026-02-14 20:36:38.020	997ms	176ms	93.6%	50.9 MB	60.2 MB	1.2 MB	9 KB
