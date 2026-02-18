@@ -1,36 +1,27 @@
-# rnaseq-star-nextflow# 🧬 RNA-seq Universal Pipeline
+# 🧬 RNA-seq Universal Pipeline
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Nextflow-DSL2-brightgreen?style=for-the-badge&logo=nextflow" />
-  <img src="https://img.shields.io/badge/Conda-Environment-blue?style=for-the-badge&logo=anaconda" />
-  <img src="https://img.shields.io/badge/STAR-Aligner-orange?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" />
-</p>
+An automated RNA-seq pipeline built with Nextflow DSL2 for gene expression analysis.
+Supports both conventional paired-end reads and interleaved FASTQ files, with automatic
+input detection and dynamic parameter adjustment.
 
-<p align="center">
-  Pipeline automatizado de RNA-seq desenvolvido em <strong>Nextflow DSL2</strong> para análise de expressão gênica. Suporta leituras <em>paired-end</em> convencionais e arquivos <em>interleaved</em>, com detecção automática de arquivos de entrada e ajuste dinâmico de parâmetros.
-</p>
+## 📋 Table of Contents
 
----
+- [Overview](#overview)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Directory Structure](#directory-structure)
+- [Usage](#usage)
+- [Pipeline Steps](#pipeline-steps)
+- [Parameters](#parameters)
+- [Output](#output)
+- [Author](#author)
 
-## 📋 Índice
+## 🔍 Overview
 
-- [Visão Geral](#-visão-geral)
-- [Funcionalidades](#-funcionalidades)
-- [Requisitos](#-requisitos)
-- [Estrutura de Diretórios](#-estrutura-de-diretórios)
-- [Como Usar](#-como-usar)
-- [Etapas do Pipeline](#-etapas-do-pipeline)
-- [Parâmetros](#️-parâmetros)
-- [Resultados](#-resultados)
-- [Autor](#-autor)
-
----
-
-## 🔍 Visão Geral
-
-Este pipeline realiza análise completa de RNA-seq, desde o controle de qualidade das leituras até a quantificação de genes, gerando relatórios consolidados com MultiQC. Todo o processo é **automatizado**: basta organizar os arquivos na pasta `data/` e executar o pipeline — ele encontra o genoma, a anotação e as leituras automaticamente.
-
+This pipeline performs a complete RNA-seq analysis — from read quality control to gene
+quantification — generating consolidated reports with MultiQC. The entire process is
+automated: simply organize your files inside the `data/` folder and run the pipeline.
+It will automatically locate the genome, annotation, and reads.
 ```
 Reads (paired / interleaved)
         │
@@ -41,145 +32,150 @@ Reads (paired / interleaved)
   [ STAR Index ] → [ STAR Align ] → [ Index BAM ] → [ featureCounts ] → [ MultiQC ]
 ```
 
----
+## ✨ Features
 
-## ✨ Funcionalidades
+- Automatic detection of genome (`.fa`, `.fasta`, `.fna`) and annotation
+  (`.gtf`, `.gff`, `.gff3`) files inside `data/`
+- Dual support for **paired-end** reads (`_1`/`_2` files) and **interleaved**
+  reads (single interleaved FASTQ)
+- Automatic splitting of interleaved reads via dedicated `SPLIT_INTERLEAVED` process
+- Dynamic calculation of `genomeSAindexNbases` based on genome size
+- Intelligent RAM allocation for STAR Aligner (80% of available system memory)
+- Consolidated MultiQC report aggregating QC, mapping, and count metrics
+- Conda-based environment management
 
-- **Detecção automática** de arquivos de genoma (`.fa`, `.fasta`, `.fna`) e anotação (`.gtf`, `.gff`, `.gff3`) dentro de `data/`
-- **Suporte duplo** a reads *paired-end* (arquivos `_1`/`_2`) e *interleaved* (arquivo único intercalado)
-- **Separação automática** de leituras interleaved via processo dedicado (`SPLIT_INTERLEAVED`)
-- **Ajuste dinâmico** do parâmetro `genomeSAindexNbases` conforme o tamanho do genoma
-- **Alocação inteligente** de memória RAM para o STAR Aligner (80% da RAM disponível)
-- **Relatório consolidado** com MultiQC agregando QC, mapeamento e contagem
-- **Controle de ambiente** via Conda
+## 📦 Requirements
 
----
+| Tool | Recommended Version | Description |
+|------|-------------------|-------------|
+| Nextflow | ≥ 22.10 | Pipeline orchestrator |
+| Conda | ≥ 4.12 | Environment manager |
+| STAR | ≥ 2.7 | RNA-seq aligner |
+| Samtools | ≥ 1.15 | BAM file manipulation |
+| FastQC | ≥ 0.11 | Quality control |
+| featureCounts | ≥ 2.0 (Subread) | Gene quantification |
+| MultiQC | ≥ 1.14 | Aggregated report |
 
-## 📦 Requisitos
+> All dependencies should be listed in `envs/bioinfo.yml`.
 
-| Ferramenta      | Versão Recomendada | Descrição                        |
-|-----------------|--------------------|----------------------------------|
-| [Nextflow](https://www.nextflow.io/) | ≥ 22.10 | Orquestrador do pipeline |
-| [Conda](https://docs.conda.io/)     | ≥ 4.12  | Gerenciador de ambientes         |
-| STAR            | ≥ 2.7              | Alinhador de RNA-seq             |
-| Samtools        | ≥ 1.15             | Manipulação de arquivos BAM      |
-| FastQC          | ≥ 0.11             | Controle de qualidade            |
-| featureCounts   | ≥ 2.0 (Subread)    | Quantificação de genes           |
-| MultiQC         | ≥ 1.14             | Relatório agregado               |
-
-> O arquivo `envs/bioinfo.yml` deve conter todas as dependências acima.
-
----
-
-## 🗂 Estrutura de Diretórios
-
+## 🗂 Directory Structure
 ```
 project/
 ├── data/
-│   ├── genome.fasta          # Genoma de referência
-│   ├── annotation.gtf        # Anotação genômica
+│   ├── genome/
+│   │   └── genome.fasta             # Reference genome
+│   ├── annotation/
+│   │   └── annotation.gtf           # Genome annotation
 │   └── reads/
-│       ├── sample1_1.fastq.gz   # Paired-end R1
-│       ├── sample1_2.fastq.gz   # Paired-end R2
-│       └── sample2.fastq.gz     # Interleaved
+│       ├── sample1_1.fastq.gz       # Paired-end R1
+│       ├── sample1_2.fastq.gz       # Paired-end R2
+│       └── sample2.fastq.gz         # Interleaved
 ├── envs/
-│   └── bioinfo.yml           # Ambiente Conda
-├── main.nf                   # Pipeline principal
-└── results_rnaseq/           # Saída gerada automaticamente
+│   └── bioinfo.yml                  # Conda environment
+├── setup.sh                         # Directory setup script
+├── main.nf                          # Main pipeline script
+└── results_rnaseq/                  # Auto-generated output
 ```
 
----
+## 🚀 Usage
 
-## 🚀 Como Usar
-
-**1. Clone o repositório**
+### 1. Clone the repository
 ```bash
-git clone https://github.com/Lucas-Guerra1/rnaseq-pipeline.git
-cd rnaseq-pipeline
+git clone https://github.com/Lucas-Guerra1/rnaseq-star-nextflow.git
+cd rnaseq-star-nextflow
 ```
 
-**2. Organize seus dados**
+### 2. Set up the directory structure
+
+A setup script is provided to create the required folder structure automatically:
 ```bash
-# Coloque o genoma, anotação e reads dentro de data/
-# A estrutura de subpastas é suportada (busca recursiva)
+bash setup.sh
 ```
 
-**3. Execute o pipeline**
+This will create the following directories:
+```
+data/
+├── genome/       # Place your reference genome here (.fa, .fasta, .fna)
+├── annotation/   # Place your annotation file here (.gtf, .gff, .gff3)
+└── reads/        # Place your FASTQ read files here
+```
+
+> After running the script, add your files to the appropriate folders before
+> executing the pipeline.
+
+### 3. Organize your data
+```bash
+# Place genome, annotation, and reads inside their respective data/ subdirectories
+# Subdirectory structures are supported (recursive search)
+```
+
+### 4. Run the pipeline
 ```bash
 nextflow run main.nf
 ```
 
-**4. (Opcional) Personalize o diretório de saída**
+### 5. (Optional) Customize the output directory
 ```bash
-nextflow run main.nf --outdir meus_resultados
+nextflow run main.nf --outdir my_results
 ```
 
----
+## ⚙️ Pipeline Steps
 
-## ⚙️ Etapas do Pipeline
+### 1. SPLIT_INTERLEAVED
+Detects and splits interleaved FASTQ files into two independent files
+(`_1.fastq.gz` and `_2.fastq.gz`), validating read count parity before processing.
 
-### 1. `SPLIT_INTERLEAVED`
-Detecta e separa arquivos FASTQ no formato interleaved em dois arquivos independentes (`_1.fastq.gz` e `_2.fastq.gz`), validando a paridade do número de leituras antes do processamento.
+### 2. FASTQC
+Evaluates read quality for all samples, generating `.html` and `.zip` reports.
 
-### 2. `FASTQC`
-Avalia a qualidade das leituras de todas as amostras (paired e interleaved separados), gerando relatórios `.html` e `.zip`.
+### 3. STAR_INDEX
+Builds the reference genome index. The `--genomeSAindexNbases` parameter is
+calculated automatically based on genome size:
 
-### 3. `STAR_INDEX`
-Constrói o índice do genoma de referência. O parâmetro `--genomeSAindexNbases` é calculado automaticamente com base no tamanho do genoma:
+| Genome Size | genomeSAindexNbases |
+|-------------|-------------------|
+| < 10 Mb | 10 |
+| 10 – 100 Mb | 12 |
+| > 100 Mb | 14 |
 
-| Tamanho do Genoma | `genomeSAindexNbases` |
-|-------------------|-----------------------|
-| < 10 Mb           | 10                    |
-| 10 – 100 Mb       | 12                    |
-| > 100 Mb          | 14                    |
+### 4. STAR_ALIGN
+Aligns reads to the reference genome using splice-aware parameters optimized for
+RNA-seq. RAM limit is calculated dynamically (80% of total system memory).
 
-### 4. `STAR_ALIGN`
-Alinha as leituras ao genoma de referência com parâmetros otimizados para RNA-seq (splice-aware). O limite de RAM é calculado dinamicamente (80% da memória total do sistema).
+### 5. INDEX_BAM
+Indexes sorted BAM files with `samtools index` for efficient random access.
 
-### 5. `INDEX_BAM`
-Indexa os arquivos BAM ordenados com `samtools index`, possibilitando acesso aleatório eficiente.
+### 6. FEATURE_COUNTS
+Quantifies reads per gene using featureCounts. Attempts paired-end mode first
+(`-p -B -C`); falls back to single-end mode if needed.
 
-### 6. `FEATURE_COUNTS`
-Quantifica leituras por gene usando `featureCounts`. Tenta primeiro o modo *paired-end* com validação de pares (`-p -B -C`); em caso de falha, executa em modo simples como fallback.
+### 7. MULTIQC
+Aggregates all QC reports, mapping logs, flagstats, and count summaries into a
+single interactive HTML report.
 
-### 7. `MULTIQC`
-Agrega todos os relatórios de QC, logs de mapeamento, flagstats e sumários de contagem em um único relatório HTML interativo.
+## 🛠️ Parameters
 
----
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--outdir` | `results_rnaseq` | Output directory |
+| `--reads_paired` | `data/**/*_{1,2}.f*q{,.gz}` | Glob pattern for paired-end reads |
+| `--reads_interleaved` | `data/**/*.f*q{,.gz}` | Glob pattern for interleaved reads |
 
-## 🛠️ Parâmetros
-
-| Parâmetro            | Padrão                          | Descrição                                      |
-|----------------------|---------------------------------|------------------------------------------------|
-| `--outdir`           | `results_rnaseq`                | Diretório de saída dos resultados              |
-| `--reads_paired`     | `data/**/*_{1,2}.f*q{,.gz}`    | Padrão glob para reads paired-end              |
-| `--reads_interleaved`| `data/**/*.f*q{,.gz}`          | Padrão glob para reads interleaved             |
-
----
-
-## 📊 Resultados
-
+## 📊 Output
 ```
 results_rnaseq/
-├── 00_preprocessed/     # Reads interleaved separados
-├── 01_fastqc/           # Relatórios de qualidade (FastQC)
-├── 02_star_index/       # Índice do genoma (STAR)
-├── 03_mapping/          # BAMs alinhados, indexados, flagstat e logs do STAR
-├── 04_counts/           # counts.txt e counts.txt.summary (featureCounts)
-└── 05_multiqc/          # Relatório consolidado (MultiQC)
+├── 00_preprocessed/   # Split interleaved reads
+├── 01_fastqc/         # FastQC quality reports
+├── 02_star_index/     # STAR genome index
+├── 03_mapping/        # Aligned BAMs, indexes, flagstat and STAR logs
+├── 04_counts/         # counts.txt and counts.txt.summary (featureCounts)
+└── 05_multiqc/        # Consolidated MultiQC report
 ```
 
----
-
-## 👤 Autor
+## 👤 Author
 
 **Lucas Guerra**
-Universidade Federal de Lavras (UFLA)
-
-[![GitHub](https://img.shields.io/badge/GitHub-Lucas--Guerra1-181717?style=flat&logo=github)](https://github.com/Lucas-Guerra1)
-
----
-
-<p align="center">
-  Desenvolvido com 🧬 para análises de transcriptômica reproduzíveis e automatizadas.
-</p>
+Federal University of Lavras (UFLA) — Brazil
+Ph.D. candidate | M.Sc. Plant Biotechnology
+[GitHub](https://github.com/Lucas-Guerra1) ·
+[LinkedIn](https://www.linkedin.com/in/lucas-ribeiro-de-souza-guerra-082621186/)
