@@ -1,6 +1,6 @@
-# SNP Phylogenomics Pipeline (Nextflow DSL2)
+# RNA-Seq Pipeline — Nextflow DSL2 (STAR)
 
-An automated pipeline for SNP detection, genome alignment construction, and phylogenetic inference from paired-end Illumina sequencing data, implemented in Nextflow DSL2.
+An automated pipeline for RNA-seq data analysis, implemented in Nextflow DSL2. The pipeline automatically discovers paired-end and interleaved FASTQ files, performs quality control, aligns reads to a reference genome with STAR, quantifies gene expression with featureCounts, and aggregates all reports with MultiQC.
 
 ---
 
@@ -11,50 +11,42 @@ An automated pipeline for SNP detection, genome alignment construction, and phyl
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Input Format](#input-format)
+- [Directory Structure](#directory-structure)
 - [Usage](#usage)
 - [Parameters](#parameters)
 - [Output Structure](#output-structure)
 - [Output Files](#output-files)
 - [Technical Description](#technical-description)
-- [Use Cases](#use-cases)
 - [Limitations](#limitations)
-- [Suggested Improvements](#suggested-improvements)
 - [License](#license)
 
 ---
 
 ## Overview
 
-This pipeline performs end-to-end SNP-based phylogenomics:
+This pipeline performs end-to-end RNA-seq analysis:
 
-- Read quality control and trimming
-- Reference genome alignment
-- Per-sample variant calling
-- SNP filtering
-- Multi-sample VCF merging
-- FASTA alignment generation from SNPs
-- Phylogenetic tree inference
-
-The pipeline is fully reproducible, modular, and scalable across local machines and HPC environments.
+- Automatic detection of paired-end and interleaved FASTQ files
+- Quality control of raw reads
+- Genome index generation with STAR (with automatic `genomeSAindexNbases` adjustment based on genome size)
+- Paired-end alignment with STAR
+- BAM indexing and flagstat reporting
+- Gene expression quantification with featureCounts
+- Aggregated QC and mapping report with MultiQC
 
 ---
 
 ## Workflow
 
 ```
-Reads → QC (fastp) → Alignment (BWA) → Variant Calling (bcftools) → SNP Filter → Merge VCFs → SNP Alignment → Phylogeny (FastTree)
+FASTQ (paired-end or interleaved)
+        │
+        ▼
+Interleaved split (if needed)
+        │
+        ▼
+FastQC → STAR Index → STAR Align → BAM Index → featureCounts → MultiQC
 ```
-
-**Detailed steps:**
-
-1. **Reference indexing** — `bwa index`
-2. **Quality control and trimming** — `fastp` with automatic adapter detection
-3. **Genome alignment** — `bwa mem`, sorting and indexing with `samtools`
-4. **Per-sample variant calling** — `bcftools mpileup` + `bcftools call`
-5. **SNP filtering** — retains only biallelic SNPs
-6. **Multi-sample VCF merging** — `bcftools merge`
-7. **SNP-to-FASTA alignment** — concatenated SNP matrix with corrected sample names
-8. **Phylogenetic inference** — `FastTree` with GTR model
 
 ---
 
@@ -62,18 +54,19 @@ Reads → QC (fastp) → Alignment (BWA) → Variant Calling (bcftools) → SNP 
 
 ### Software
 
-| Tool | Version |
-|---|---|
-| Nextflow | ≥ 22 |
-| Conda or Mamba | any |
+| Tool | Version | Purpose |
+|---|---|---|
+| Nextflow | ≥ 22 | Workflow manager |
+| Java | ≥ 11 | Required by Nextflow |
+| Conda or Mamba | any | Dependency management |
 
 ### Bioinformatics tools (managed via Conda)
 
-- `bwa`
-- `fastp`
-- `samtools`
-- `bcftools`
-- `FastTree`
+- `STAR` ≥ 2.7
+- `FastQC`
+- `MultiQC`
+- `Samtools`
+- `featureCounts` (Subread package)
 
 All tools are installed automatically via the `envs/bioinfo.yml` Conda environment.
 
@@ -84,8 +77,8 @@ All tools are installed automatically via the `envs/bioinfo.yml` Conda environme
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/snp-phylogenomics-nextflow.git
-cd snp-phylogenomics-nextflow
+git clone https://github.com/Lucas-Guerra1/rnaseq-star-nextflow.git
+cd rnaseq-star-nextflow
 ```
 
 ### 2. Install Nextflow
@@ -105,30 +98,68 @@ conda env create -f envs/bioinfo.yml
 
 > If using Mamba: `mamba env create -f envs/bioinfo.yml`
 
+### 4. Set up the directory structure
+
+```bash
+bash setup.sh
+```
+
+This creates the expected `data/` structure for your input files.
+
 ---
 
 ## Input Format
 
-### Paired-end FASTQ reads
-
-The pipeline expects paired-end FASTQ files following these naming conventions:
-
-```
-data/sample_1.fastq.gz    data/sample_2.fastq.gz
-data/SAMPLEID_R1.fastq.gz data/SAMPLEID_R2.fastq.gz
-```
-
-Configurable via `--reads` (default: `data/*_{1,2}.fastq.gz`).
-
 ### Reference genome
 
-A single FASTA file:
+Place your genome FASTA file anywhere inside `data/`. The pipeline discovers it automatically:
 
 ```
-data/ref.fa
+data/genome/genome.fa        # or .fasta / .fna
 ```
 
-Configurable via `--ref_fasta`.
+### Annotation
+
+Place your GTF or GFF annotation file inside `data/`. The pipeline discovers it automatically:
+
+```
+data/annotation/annotation.gtf   # or .gff / .gff3
+```
+
+### FASTQ reads
+
+The pipeline supports two input formats, detected automatically:
+
+**Paired-end** (separate R1/R2 files):
+```
+data/reads/sample_1.fastq.gz
+data/reads/sample_2.fastq.gz
+```
+
+**Interleaved** (R1 and R2 in the same file):
+```
+data/reads/sample.fastq.gz
+```
+
+> Interleaved files are split automatically before alignment. Files without `_1` / `_2` in their names are treated as interleaved.
+
+---
+
+## Directory Structure
+
+```
+rnaseq-star-nextflow/
+├── data/
+│   ├── genome/          # Reference genome FASTA (.fa, .fasta, .fna)
+│   ├── annotation/      # Gene annotation (.gtf, .gff, .gff3)
+│   └── reads/           # FASTQ files (paired-end or interleaved)
+├── envs/
+│   └── bioinfo.yml      # Conda environment definition
+├── main.nf              # Main Nextflow pipeline
+├── nextflow.config      # Resource and executor configuration
+├── setup.sh             # Directory structure setup script
+└── README.md
+```
 
 ---
 
@@ -140,22 +171,23 @@ Configurable via `--ref_fasta`.
 nextflow run main.nf
 ```
 
+The pipeline will automatically find the genome, annotation, and FASTQ files inside `data/`.
+
 ### Run with explicit parameters
 
 ```bash
 nextflow run main.nf \
-  --reads "data/*_{1,2}.fastq.gz" \
-  --ref_fasta data/ref.fa \
-  --outdir results
+  --outdir my_results
 ```
 
 ### Run with multiple CPUs
 
-```bash
-nextflow run main.nf -profile local --max_cpus 8
-```
+Configure resources in `nextflow.config`:
 
-> Configure CPU and memory limits in `nextflow.config`.
+```groovy
+process.cpus   = 8
+process.memory = '16 GB'
+```
 
 ### Resume a failed run
 
@@ -169,26 +201,24 @@ nextflow run main.nf -resume
 
 | Parameter | Description | Default |
 |---|---|---|
-| `--reads` | Glob pattern for paired-end FASTQ files | `data/*_{1,2}.fastq.gz` |
-| `--ref_fasta` | Reference genome FASTA file | `data/ref.fa` |
-| `--outdir` | Output directory | `results` |
+| `--reads_paired` | Glob pattern for paired-end FASTQ files | `data/**/*_{1,2}.f*q{,.gz}` |
+| `--reads_interleaved` | Glob pattern for interleaved FASTQ files | `data/**/*.f*q{,.gz}` |
+| `--outdir` | Output directory | `results_rnaseq` |
 
-The pipeline automatically validates that `--reads` and `--ref_fasta` are provided.
+> The reference genome and annotation are discovered automatically from `data/`. No manual path configuration is required.
 
 ---
 
 ## Output Structure
 
 ```
-results/
-├── 00_ref_index/       # BWA reference indices
-├── 01_fastp/           # Trimmed reads
-├── 02_bam/             # Sorted and indexed BAM files
-├── 03_vcf/             # Per-sample VCF files
-├── 04_snps/            # Biallelic SNP-only VCF files
-├── 05_merged_vcf/      # Multi-sample merged VCF
-├── 06_alignment/       # SNP FASTA alignment
-└── 07_tree/            # Phylogenetic tree (Newick)
+results_rnaseq/
+├── 00_preprocessed/     # Split reads from interleaved files
+├── 01_fastqc/           # FastQC quality reports
+├── 02_star_index/       # STAR genome index
+├── 03_mapping/          # Sorted BAM files, indexes, flagstat, and STAR logs
+├── 04_counts/           # featureCounts output (counts.txt)
+└── 05_multiqc/          # Aggregated MultiQC report
 ```
 
 ---
@@ -197,68 +227,51 @@ results/
 
 | File | Description |
 |---|---|
-| `*.sorted.bam` | Sorted alignment file |
+| `*_fastqc.html` | Per-sample FastQC quality report |
+| `star_index/` | STAR genome index directory |
+| `*.sorted.bam` | Coordinate-sorted BAM file |
 | `*.sorted.bam.bai` | BAM index |
-| `*.vcf.gz` | Per-sample variant calls |
-| `*.snps.vcf.gz` | Biallelic SNPs only |
-| `all_samples.vcf.gz` | Multi-sample merged VCF |
-| `snp_alignment.fasta` | Concatenated SNP matrix (FASTA) |
-| `tree.nwk` | Phylogenetic tree in Newick format |
+| `*.Log.final.out` | STAR mapping statistics summary |
+| `*.flagstat.txt` | Samtools flagstat alignment summary |
+| `counts.txt` | Gene-level read counts (featureCounts) |
+| `counts.txt.summary` | featureCounts assignment summary |
+| `multiqc_report.html` | Aggregated QC and mapping report |
 
 ---
 
 ## Technical Description
 
-### SNP alignment strategy
+### Automatic genome size detection
 
-The pipeline:
+The STAR indexing step automatically adjusts `--genomeSAindexNbases` based on genome size:
 
-1. Extracts only SNP positions from the merged VCF
-2. Removes phasing symbols (`/` and `|`)
-3. Uses the first allele per position
-4. Replaces missing data with `N`
-5. Concatenates all SNPs per sample
-6. Generates a multi-sequence FASTA alignment with correct sample identifiers
+| Genome size | `genomeSAindexNbases` |
+|---|---|
+| < 10 Mb | 10 |
+| 10–100 Mb | 12 |
+| > 100 Mb | 14 (STAR default) |
 
-### Pipeline architecture
+### Automatic RAM detection
 
-Implemented in Nextflow DSL2 with:
+The alignment step calculates `--limitBAMsortRAM` dynamically as 80% of available system memory (minimum 2 GB), avoiding out-of-memory failures on different machines.
 
-- Independent modular processes
-- Typed channels
-- Automatic parallelization
-- Reproducibility via versioned Conda environments
-- Compatibility with local and HPC execution
+### Interleaved detection
 
----
+Files are classified as interleaved if they do not contain `_1` or `_2` before the extension. These are split into R1/R2 using an `awk`-based approach before alignment.
 
-## Use Cases
+### featureCounts fallback
 
-- SNP-based bacterial phylogeny
-- Comparative genomics
-- Epidemiological surveillance
-- Population structure studies
-- Evolutionary analysis
+featureCounts is first run in paired-end mode (`-p --countReadPairs`). If this fails (e.g., for single-end libraries), the pipeline automatically retries in single-end mode.
 
 ---
 
 ## Limitations
 
-- Assumes Illumina paired-end sequencing data only
-- Retains only biallelic SNPs; multiallelic variants are excluded
-- No advanced variant quality filtering (DP, MQ, QUAL thresholds)
-- Does not mask repetitive regions
-- Does not include recombination filtering
-
----
-
-## Suggested Improvements
-
-- SNP quality filtering by depth (DP), mapping quality (MQ), and QUAL score
-- Repetitive region masking (e.g., with RepeatMasker)
-- Recombination detection (e.g., ClonalFrameML, Gubbins)
-- Long-read data support (PacBio, Oxford Nanopore)
-- Additional phylogenetic models and bootstrap support
+- Designed for **Linux** only; not tested on macOS or Windows
+- Reference genome and annotation must be placed inside `data/` for automatic discovery
+- Only supports standard Illumina short reads; long-read data is not supported
+- Stranded library protocols are not configured by default — set the `-s` flag in featureCounts manually if needed
+- Does not perform differential expression analysis; `counts.txt` is the final quantification output
 
 ---
 
